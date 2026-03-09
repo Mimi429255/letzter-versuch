@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Live Astronomie Dashboard</title>
+    <style>
+        :root {
+            --bg: #02010a;
+            --card-bg: rgba(10,10,25,0.9);
+            --border: rgba(255,255,255,0.08);
+            --accent: #4f46e5;
+            --accent2: #ec4899;
+            --text-main: #f5f5f5;
+            --text-muted: #a3a3a3;
+        }
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: radial-gradient(circle at top, #050816 0, #02010a 45%, #000 100%);
+            color: var(--text-main);
+        }
+        header {
+            padding: 18px 24px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            gap: 10px 20px;
+        }
+        header h1 {
+            margin: 0;
+            font-size: 1.8rem;
+        }
+        .badge {
+            display: inline-block;
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+            color: white;
+            margin-left: 8px;
+        }
+        #timestamp {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+        main {
+            max-width: 1200px;
+            margin: 20px auto 40px;
+            padding: 0 16px;
+            display: grid;
+            grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr);
+            gap: 20px;
+        }
+        @media (max-width: 900px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+        }
+        .card {
+            background: var(--card-bg);
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            box-shadow: 0 18px 40px rgba(0,0,0,0.6);
+            padding: 16px 18px 18px;
+        }
+        .card h2 {
+            margin: 0 0 6px;
+            font-size: 1.2rem;
+        }
+        .subtitle {
+            margin: 0 0 10px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+        #solar-container {
+            position: relative;
+            height: 480px;
+        }
+        #solar-canvas {
+            width: 100%;
+            height: 100%;
+            border-radius: 12px;
+            background: radial-gradient(circle at center, #111827 0, #020617 55%, #000 100%);
+            display: block;
+        }
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px 12px;
+            margin-top: 10px;
+            font-size: 0.8rem;
+        }
+        .legend-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        .panel-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+        }
+        .panel {
+            background: rgba(5,5,20,0.9);
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.06);
+            padding: 10px 12px 12px;
+        }
+        .panel h3 {
+            margin: 0 0 4px;
+            font-size: 1rem;
+        }
+        .panel p {
+            margin: 0 0 6px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+        ul {
+            margin: 0;
+            padding-left: 18px;
+            font-size: 0.85rem;
+        }
+        li {
+            margin-bottom: 4px;
+        }
+        .location-form {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 6px;
+            font-size: 0.8rem;
+        }
+        .location-form input {
+            background: rgba(15,23,42,0.9);
+            border: 1px solid rgba(148,163,184,0.6);
+            border-radius: 6px;
+            padding: 4px 6px;
+            color: var(--text-main);
+            width: 80px;
+        }
+        .location-form button {
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+            border: none;
+            border-radius: 999px;
+            padding: 4px 10px;
+            color: white;
+            cursor: pointer;
+        }
+        .location-note {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+        footer {
+            text-align: center;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            padding: 16px;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            background: rgba(0,0,0,0.7);
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div>
+        <h1>Live Astronomie Dashboard<span class="badge">Visual Demo</span></h1>
+    </div>
+    <div id="timestamp">Stand: –</div>
+</header>
+
+<main>
+    <!-- Linke Seite: Grafik -->
+    <section class="card">
+        <h2>Sonnensystem – Live‑Ansicht</h2>
+        <p class="subtitle">
+            Vereinfachte, aber realistisch skalierte Umlaufbahnen. Die Planeten bewegen sich mit ihren relativen Umlaufzeiten.
+        </p>
+        <div id="solar-container">
+            <canvas id="solar-canvas"></canvas>
+        </div>
+        <div class="legend" id="planet-legend"></div>
+    </section>
+
+    <!-- Rechte Seite: Infos & Standort -->
+    <section class="card">
+        <h2>Beobachtungs‑Überblick</h2>
+        <p class="subtitle">
+            Standort, sichtbare Planeten, Sternbilder, Meteorschauer und aktuelle Highlights.
+        </p>
+
+        <div class="panel">
+            <h3>Standort</h3>
+            <p>Nutze deinen Standort, um die Himmelsereignisse besser einzuordnen.</p>
+            <form class="location-form" onsubmit="return false;">
+                <label>Breite:
+                    <input type="number" step="0.0001" id="lat-input" value="50.9375">
+                </label>
+                <label>Länge:
+                    <input type="number" step="0.0001" id="lon-input" value="6.9603">
+                </label>
+                <button id="update-location">Übernehmen</button>
+            </form>
+            <div class="location-note" id="location-note">
+                Aktueller Standort: Köln, Deutschland (Demo‑Werte).
+            </div>
+        </div>
+
+        <div class="panel-grid">
+            <div class="panel">
+                <h3>Sichtbare Planeten (theoretisch)</h3>
+                <p>Grobe Einschätzung, welche Planeten typischerweise beobachtbar sind.</p>
+                <ul id="visible-planets">
+                    <li>Venus – oft als Abend‑ oder Morgenstern sichtbar</li>
+                    <li>Jupiter – sehr hell, gut mit bloßem Auge zu sehen</li>
+                    <li>Saturn – mit kleinem Teleskop eindrucksvoll</li>
+                </ul>
+            </div>
+
+            <div class="panel">
+                <h3>Sternbilder</h3>
+                <p>Beispiele für markante Sternbilder am Nordhimmel.</p>
+                <ul>
+                    <li>Orion – markant im Winter</li>
+                    <li>Großer Wagen – ganzjährig zirkumpolar</li>
+                    <li>Kassiopeia – W‑förmig, nahe Polarstern</li>
+                </ul>
+            </div>
+
+            <div class="panel">
+                <h3>Meteorschauer</h3>
+                <p>Wichtige jährliche Meteorschauer.</p>
+                <ul>
+                    <li>Perseiden – Maximum um den 12. August</li>
+                    <li>Geminiden – Maximum um den 14. Dezember</li>
+                    <li>Quadrantiden – Maximum Anfang Januar</li>
+                </ul>
+            </div>
+
+            <div class="panel">
+                <h3>Astronomie‑Highlights</h3>
+                <p>Ideen, was du beobachten kannst.</p>
+                <ul>
+                    <li>Milchstraße an dunklen Orten (Sommer/Herbst)</li>
+                    <li>Jupiter & seine Galileischen Monde</li>
+                    <li>Saturnringe mit kleinem Teleskop</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+</main>
+
+<footer>
+    Visualisierungs‑Demo mit vereinfachten Bahndaten. Für exakte Ephemeriden können später APIs (z.B. JPL, AstronomyAPI) angebunden werden.
+</footer>
+
+<script>
+    // Zeitstempel
+    document.getElementById("timestamp").innerText =
+        "Stand: " + new Date().toLocaleString("de-DE") + " (lokale Browserzeit)";
+
+    // Standort-Handling (nur Anzeige, keine echte Berechnung hier)
+    let currentLat = 50.9375;
+    let currentLon = 6.9603;
+    const locationNote = document.getElementById("location-note");
+    document.getElementById("update-location").addEventListener("click", () => {
+        const lat = parseFloat(document.getElementById("lat-input").value);
+        const lon = parseFloat(document.getElementById("lon-input").value);
+        if (!isNaN(lat) && !isNaN(lon)) {
+            currentLat = lat;
+            currentLon = lon;
+            locationNote.textContent =
+                "Aktueller Standort: " + lat.toFixed(4) + "°, " + lon.toFixed(4) +
+                "° (vereinfachte Demo – Sichtbarkeiten sind nur grob).";
+        }
+    });
+
+    // Vereinfachtes Sonnensystem
+    const canvas = document.getElementById("solar-canvas");
+    const ctx = canvas.getContext("2d");
+
+    function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * window.devicePixelRatio;
+        canvas.height = rect.height * window.devicePixelRatio;
+        ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+    }
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+
+    // Planeten-Daten (stark vereinfacht, relative Abstände & Umlaufzeiten)
+    const planets = [
+        { name: "Merkur", color: "#f97316", orbitRadius: 40, radius: 3, periodDays: 88 },
+        { name: "Venus",  color: "#eab308", orbitRadius: 60, radius: 4, periodDays: 225 },
+        { name: "Erde",   color: "#22c55e", orbitRadius: 80, radius: 4, periodDays: 365 },
+        { name: "Mars",   color: "#ef4444", orbitRadius: 100, radius: 3.5, periodDays: 687 },
+        { name: "Jupiter",color: "#facc15", orbitRadius: 135, radius: 6, periodDays: 4333 },
+        { name: "Saturn", color: "#e5e7eb", orbitRadius: 165, radius: 5, periodDays: 10759 },
+        { name: "Uranus", color: "#38bdf8", orbitRadius: 190, radius: 4.5, periodDays: 30687 },
+        { name: "Neptun", color: "#6366f1", orbitRadius: 215, radius: 4.5, periodDays: 60190 }
+    ];
+
+    // Legende
+    const legend = document.getElementById("planet-legend");
+    planets.forEach(p => {
+        const item = document.createElement("div");
+        item.className = "legend-item";
+        const dot = document.createElement("div");
+        dot.className = "legend-dot";
+        dot.style.background = p.color;
+        item.appendChild(dot);
+        const label = document.createElement("span");
+        label.textContent = p.name;
+        item.appendChild(label);
+        legend.appendChild(item);
+    });
+
+    const startTime = Date.now();
+
+    function drawSolarSystem() {
+        const rect = canvas.getBoundingClientRect();
+        const w = rect.width;
+        const h = rect.height;
+        ctx.clearRect(0, 0, w, h);
+
+        const cx = w / 2;
+        const cy = h / 2;
+
+        // Sterne im Hintergrund
+        ctx.fillStyle = "rgba(255,255,255,0.15)";
+        for (let i = 0; i < 40; i++) {
+            const x = Math.random() * w;
+            const y = Math.random() * h;
+            ctx.fillRect(x, y, 1, 1);
+        }
+
+        // Sonne
+        const sunGradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, 18);
+        sunGradient.addColorStop(0, "#facc15");
+        sunGradient.addColorStop(1, "#f97316");
+        ctx.fillStyle = sunGradient;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 18, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Zeitfaktor: 1 Sekunde = 10 Tage (skalierbar)
+        const elapsedMs = Date.now() - startTime;
+        const elapsedDays = (elapsedMs / 1000) * 10;
+
+        // Orbits & Planeten
+        planets.forEach(p => {
+            // Orbit
+            ctx.strokeStyle = "rgba(148,163,184,0.35)";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(cx, cy, p.orbitRadius, 0, Math.PI * 2);
+            ctx.stroke();
+
+            
+            const angle = (elapsedDays / p.periodDays) * 2 * Math.PI;
+            const x = cx + Math.cos(angle) * p.orbitRadius;
+            const y = cy + Math.sin(angle) * p.orbitRadius;
+
+           
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(x, y, p.radius, 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        requestAnimationFrame(drawSolarSystem);
+    }
+
+    requestAnimationFrame(drawSolarSystem);
+</script>
+
+</body>
+</html>
